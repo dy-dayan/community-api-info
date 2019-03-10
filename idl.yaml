@@ -1,0 +1,2 @@
+depends:
+  - "dayan/community/srv-info/info.proto"
