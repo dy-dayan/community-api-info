@@ -5,6 +5,7 @@ import (
 	"github.com/dy-dayan/community-api-info/form"
 	"github.com/dy-dayan/community-api-info/idl"
 	info "github.com/dy-dayan/community-api-info/idl/dayan/community/srv-info"
+	"github.com/dy-dayan/community-api-info/util"
 	"github.com/dy-gopkg/kit/micro"
 	"github.com/gin-gonic/gin"
 	"github.com/opencontainers/runc/Godeps/_workspace/src/github.com/Sirupsen/logrus"
@@ -85,7 +86,7 @@ func AddCommunity(ctx *gin.Context) {
 }
 
 func DelCommunity(ctx *gin.Context) {
-	idStr := ctx.Query("id")
+	idStr := ctx.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
@@ -120,24 +121,33 @@ func DelCommunity(ctx *gin.Context) {
 
 //GeCommunity
 func GetCommunity(ctx *gin.Context) {
-
-	query := form.QueryCommunity{}
-	err := ctx.BindJSON(&query)
-	if err != nil {
+	limitStr := ctx.Query("limit")
+	offsetStr := ctx.Query("offset")
+	if limitStr == "" ||
+		offsetStr == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"code": base.CODE_INVALID_PARAMETER,
 			"msg":  "param not correct",
 		})
 		return
 	}
+	limit := util.Str2Int32(limitStr)
+	offset := util.Str2Int32(offsetStr)
+	locStr := ctx.QueryArray("loc")
+	distance, flag := ctx.GetQuery("distance")
 	client := info.NewCommunityInfoService("dayan.community.srv.info", micro.Client())
 	//带地理位置查询
-	if len(query.Loc) == 2 {
+	if flag {
+		loc := []float32{}
+		for _, item := range locStr {
+			tmp := util.Str2Float32(item)
+			loc = append(loc, tmp)
+		}
 		infoReq := info.GetCommunityByLocReq{
-			Limit:    query.Limit,
-			Offset:   query.Offset,
-			Loc:      query.Loc,
-			Distance: query.Distance,
+			Limit:    limit,
+			Offset:   offset,
+			Loc:      loc,
+			Distance: util.Str2Float32(distance),
 		}
 
 		//服务异常
@@ -172,8 +182,8 @@ func GetCommunity(ctx *gin.Context) {
 
 	//不带地理位置查询
 	infoReq := info.GetCommunityReq{
-		Limit:  query.Limit,
-		Offset: query.Offset,
+		Limit:  limit,
+		Offset: offset,
 	}
 
 	//服务异常
@@ -208,7 +218,7 @@ func GetCommunity(ctx *gin.Context) {
 
 //GetCommunityByID 查询具体社区信息
 func GetCommunityByID(ctx *gin.Context) {
-	idStr := ctx.Query("id")
+	idStr := ctx.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
