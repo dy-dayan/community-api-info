@@ -20,3 +20,10 @@ type Community struct {
 	CreatedAt    int64     `json:"createdAt"`
 	UpdatedAt    int64     `json:"updatedAt"`
 }
+
+type QueryCommunity struct {
+	Limit    int32     `json:"limit"`
+	Offset   int32     `json:"offset"`
+	Loc      []float32 `json:"loc"`
+	Distance float32   `json:"distance"`
+}

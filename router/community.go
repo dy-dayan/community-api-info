@@ -12,6 +12,31 @@ import (
 	"strconv"
 )
 
+//
+func convertCommunity(c *info.Community) *form.Community {
+	return &form.Community{
+		ID:           c.Common.Id,
+		Name:         c.Common.Name,
+		SerialNumber: c.Common.SerialNumber,
+		Provinces:    c.Common.Province,
+		City:         c.Common.City,
+		Region:       c.Common.Region,
+		Street:       c.Common.Street,
+		OrgID:        c.Common.OrgID,
+		HouseCount:   c.Common.HouseCount,
+		CheckInCount: c.Common.CheckInCount,
+		BuildingArea: c.Common.BuildingArea,
+		GreeningArea: c.Common.GreeningArea,
+		SealedState:  c.Common.SealedState,
+		Loc:          c.Common.Loc,
+		State:        c.Common.State,
+		OperatorID:   c.Common.OperatorID,
+		CreatedAt:    c.CreatedAt,
+		UpdatedAt:    c.UpdatedAt,
+	}
+}
+
+//
 func AddCommunity(ctx *gin.Context) {
 	req := form.Community{}
 	err := ctx.BindJSON(&req)
@@ -93,22 +118,111 @@ func DelCommunity(ctx *gin.Context) {
 	})
 }
 
+//GeCommunity
 func GetCommunity(ctx *gin.Context) {
+
+	query := form.QueryCommunity{}
+	err := ctx.BindJSON(&query)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"code": base.CODE_INVALID_PARAMETER,
+			"msg":  "param not correct",
+		})
+		return
+	}
+	client := info.NewCommunityInfoService("dayan.community.srv.info", micro.Client())
+	//带地理位置查询
+	if len(query.Loc) == 2 {
+		infoReq := info.GetCommunityByLocReq{
+			Limit:    query.Limit,
+			Offset:   query.Offset,
+			Loc:      query.Loc,
+			Distance: query.Distance,
+		}
+
+		//服务异常
+		infoResp, err := client.GetCommunityByLoc(context.Background(), &infoReq)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"code": base.CODE_SERVICE_EXCEPTION,
+				"msg":  err.Error(),
+			})
+		}
+		//数据异常
+		if infoResp.BaseResp.Code != int32(base.CODE_OK) {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"code": infoResp.BaseResp.Code,
+				"msg":  infoResp.BaseResp.Msg,
+			})
+		}
+		data := []form.Community{}
+		for _, item := range infoResp.Communitys {
+			tmpItem := item
+			tmp := convertCommunity(tmpItem)
+			data = append(data, *tmp)
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    0,
+			"message": "success",
+			"data":    data,
+		})
+		return
+	}
+
+	//不带地理位置查询
+	infoReq := info.GetCommunityReq{
+		Limit:  query.Limit,
+		Offset: query.Offset,
+	}
+
+	//服务异常
+	infoResp, err := client.GetCommunity(context.Background(), &infoReq)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"code": base.CODE_SERVICE_EXCEPTION,
+			"msg":  err.Error(),
+		})
+	}
+	//数据异常
+	if infoResp.BaseResp.Code != int32(base.CODE_OK) {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"code": infoResp.BaseResp.Code,
+			"msg":  infoResp.BaseResp.Msg,
+		})
+	}
+	data := []form.Community{}
+	for _, item := range infoResp.Communitys {
+		tmpItem := item
+		tmp := convertCommunity(tmpItem)
+		data = append(data, *tmp)
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "success",
+		"data":    data,
+	})
+	return
+}
+
+//GetCommunityByID 查询具体社区信息
+func GetCommunityByID(ctx *gin.Context) {
 	idStr := ctx.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": base.CODE_SERVICE_EXCEPTION,
+			"code": base.CODE_INVALID_PARAMETER,
 			"msg":  "param not correct",
 		})
 		return
 	}
 	client := info.
 		NewCommunityInfoService("dayan.community.srv.info", micro.Client())
-	infoReq := info.GetCommunityReq{
+	infoReq := info.GetCommunityByIDReq{
 		CommunityID: id,
 	}
-	infoResp, err := client.GetCommunity(context.Background(), &infoReq)
+	infoResp, err := client.GetCommunityByID(context.Background(), &infoReq)
 	if err != nil {
 		logrus.Errorf("Get community error [%v]", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{
@@ -125,29 +239,11 @@ func GetCommunity(ctx *gin.Context) {
 		})
 	}
 
-	data := form.Community{
-		Name:         infoResp.Community.Name,
-		SerialNumber: infoResp.Community.SerialNumber,
-		Provinces:    infoResp.Community.Province,
-		City:         infoResp.Community.City,
-		Region:       infoResp.Community.Region,
-		Street:       infoResp.Community.Street,
-		OrgID:        infoResp.Community.OrgID,
-		HouseCount:   infoResp.Community.HouseCount,
-		CheckInCount: infoResp.Community.CheckInCount,
-		BuildingArea: infoResp.Community.BuildingArea,
-		GreeningArea: infoResp.Community.GreeningArea,
-		SealedState:  infoResp.Community.SealedState,
-		Loc:          infoResp.Community.Loc,
-		State:        infoResp.Community.State,
-		OperatorID:   infoResp.Community.OperatorID,
-		CreatedAt:    infoResp.CreatedAt,
-		UpdatedAt:    infoResp.UpdatedAt,
-	}
+	data := convertCommunity(infoResp.Community)
 
 	ctx.JSON(http.StatusOK, gin.H{
-		"code":    0,
-		"message": "success",
-		"data":    data,
+		"code": 0,
+		"msg":  "success",
+		"data": data,
 	})
 }

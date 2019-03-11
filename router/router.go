@@ -11,7 +11,8 @@ func Init() *gin.Engine {
 
 		r.POST("community", AddCommunity)
 		r.DELETE("community/:id", DelCommunity)
-		r.GET("community/:id", GetCommunity)
+		r.GET("community/:id", GetCommunityByID)
+		r.GET("community", GetCommunity)
 
 		r.POST("asset", AddAsset)
 		r.DELETE("asset/:id", DelAsset)
