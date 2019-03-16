@@ -37,7 +37,7 @@ func convertCommunity(c *info.Community) *form.Community {
 	}
 }
 
-//
+//AddCommunity 增加一个社区信息
 func AddCommunity(ctx *gin.Context) {
 	req := form.Community{}
 	err := ctx.BindJSON(&req)
@@ -82,6 +82,7 @@ func AddCommunity(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, gin.H{
 		"code": 0,
 		"msg":  "success",
+		"data": infoResp.CommunityID,
 	})
 }
 

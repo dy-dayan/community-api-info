@@ -16,7 +16,8 @@ func Init() *gin.Engine {
 
 		r.POST("asset", AddAsset)
 		r.DELETE("asset/:id", DelAsset)
-		r.GET("asset/:id", GetAsset)
+		r.GET("asset/:id", GetAssetByID)
+		r.GET("asset", GetAsset)
 
 		r.POST("building", AddBuilding)
 		r.DELETE("building/:id", DelBuilding)
