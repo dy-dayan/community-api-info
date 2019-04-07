@@ -2,6 +2,7 @@ package router
 
 import (
 	"context"
+	_ "github.com/dy-dayan/community-api-info/docs"
 	"github.com/dy-dayan/community-api-info/form"
 	"github.com/dy-dayan/community-api-info/idl"
 	info "github.com/dy-dayan/community-api-info/idl/dayan/community/srv-info"
@@ -9,11 +10,9 @@ import (
 	"github.com/dy-gopkg/kit/micro"
 	"github.com/gin-gonic/gin"
 	"github.com/opencontainers/runc/Godeps/_workspace/src/github.com/Sirupsen/logrus"
-	"net/http"
 	"strconv"
 )
 
-//
 func convertCommunity(c *info.Community) *form.Community {
 	return &form.Community{
 		ID:           c.Common.Id,
@@ -38,14 +37,27 @@ func convertCommunity(c *info.Community) *form.Community {
 }
 
 //AddCommunity 增加一个社区信息
+//
+// @title addCommunity
+// @version 1.0
+// @description 添加社区信息.
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.url http://www.swagger.io/support
+// @contact.email support@swagger.io
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host petstore.swagger.io
+// @BasePath /v2
 func AddCommunity(ctx *gin.Context) {
 	req := form.Community{}
 	err := ctx.BindJSON(&req)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code":    base.CODE_INVALID_PARAMETER,
-			"message": err.Error(),
-		})
+		FailedByParam(ctx)
+		return
 	}
 
 	client := info.
@@ -72,28 +84,18 @@ func AddCommunity(ctx *gin.Context) {
 	if err != nil || infoResp.BaseResp.Code != int32(base.CODE_OK) {
 		logrus.Errorf("add community code [%d] error:[%v], msg [%s]",
 			infoResp.BaseResp.Code, err, infoResp.BaseResp.Msg)
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": base.CODE_SERVICE_EXCEPTION,
-			"msg":  "internal server error",
-		})
+		FailedByInternal(ctx)
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, gin.H{
-		"code": 0,
-		"msg":  "success",
-		"data": infoResp.CommunityID,
-	})
+	Success(ctx, infoResp.CommunityID)
 }
 
 func DelCommunity(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": base.CODE_SERVICE_EXCEPTION,
-			"msg":  "param not correct",
-		})
+		FailedByParam(ctx)
 		return
 	}
 	client := info.
@@ -103,21 +105,19 @@ func DelCommunity(ctx *gin.Context) {
 	}
 	resp, err := client.DelCommunity(context.Background(), &infoReq)
 	//todo:分开判断错误原因
-	if err != nil ||
-		resp.BaseResp.Code != int32(base.CODE_OK) {
-		logrus.Errorf("Del community failed, code[%d],  msg[%s],error[%v]",
-			resp.BaseResp.Code, resp.BaseResp.Msg, err)
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": base.CODE_SERVICE_EXCEPTION,
-			"msg":  "Internal server error",
-		})
+	if err != nil {
+		logrus.Errorf("DelCommunity failed server error [%v]", err)
+		FailedByInternal(ctx)
+		return
+	}
+	if resp.BaseResp.Code != int32(base.CODE_OK) {
+		logrus.Errorf("DelCommunity failed, code[%d]",
+			resp.BaseResp.Code)
+		FailedByNotFind(ctx)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"code": 0,
-		"msg":  "success",
-	})
+	Success(ctx, nil)
 }
 
 //GeCommunity
@@ -126,10 +126,7 @@ func GetCommunity(ctx *gin.Context) {
 	offsetStr := ctx.Query("offset")
 	if limitStr == "" ||
 		offsetStr == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": base.CODE_INVALID_PARAMETER,
-			"msg":  "param not correct",
-		})
+		FailedByParam(ctx)
 		return
 	}
 	limit := util.Str2Int32(limitStr)
@@ -154,17 +151,15 @@ func GetCommunity(ctx *gin.Context) {
 		//服务异常
 		infoResp, err := client.GetCommunityByLoc(context.Background(), &infoReq)
 		if err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{
-				"code": base.CODE_SERVICE_EXCEPTION,
-				"msg":  err.Error(),
-			})
+			logrus.Errorf("GetCommunityByLoc failed server error [%v]", err)
+			FailedByInternal(ctx)
+			return
 		}
 		//数据异常
 		if infoResp.BaseResp.Code != int32(base.CODE_OK) {
-			ctx.JSON(http.StatusBadRequest, gin.H{
-				"code": infoResp.BaseResp.Code,
-				"msg":  infoResp.BaseResp.Msg,
-			})
+			logrus.Errorf("Get community Failed code error [%v]", infoResp.BaseResp.Code)
+			FailedByInternal(ctx)
+			return
 		}
 		data := []form.Community{}
 		for _, item := range infoResp.Communitys {
@@ -173,11 +168,7 @@ func GetCommunity(ctx *gin.Context) {
 			data = append(data, *tmp)
 		}
 
-		ctx.JSON(http.StatusOK, gin.H{
-			"code":    0,
-			"message": "success",
-			"data":    data,
-		})
+		Success(ctx, data)
 		return
 	}
 
@@ -190,17 +181,15 @@ func GetCommunity(ctx *gin.Context) {
 	//服务异常
 	infoResp, err := client.GetCommunity(context.Background(), &infoReq)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": base.CODE_SERVICE_EXCEPTION,
-			"msg":  err.Error(),
-		})
+		logrus.Error("GetCommunity failed server error [%v]", err)
+		FailedByInternal(ctx)
+		return
 	}
 	//数据异常
 	if infoResp.BaseResp.Code != int32(base.CODE_OK) {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": infoResp.BaseResp.Code,
-			"msg":  infoResp.BaseResp.Msg,
-		})
+		logrus.Errorf("GetCommunity failed code error [%v]", infoResp.BaseResp.Code)
+		FailedByInternal(ctx)
+		return
 	}
 	data := []form.Community{}
 	for _, item := range infoResp.Communitys {
@@ -209,11 +198,7 @@ func GetCommunity(ctx *gin.Context) {
 		data = append(data, *tmp)
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"code":    0,
-		"message": "success",
-		"data":    data,
-	})
+	Success(ctx, data)
 	return
 }
 
@@ -222,10 +207,7 @@ func GetCommunityByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": base.CODE_INVALID_PARAMETER,
-			"msg":  "param not correct",
-		})
+		FailedByParam(ctx)
 		return
 	}
 	client := info.
@@ -235,26 +217,19 @@ func GetCommunityByID(ctx *gin.Context) {
 	}
 	infoResp, err := client.GetCommunityByID(context.Background(), &infoReq)
 	if err != nil {
-		logrus.Errorf("Get community error [%v]", err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"code": base.CODE_SERVICE_EXCEPTION,
-			"msg":  err.Error(),
-		})
+		logrus.Errorf("GetCommunityByID  server error [%v]", err)
+		FailedByInternal(ctx)
+		return
 	}
 
 	if infoResp.BaseResp.Code != int32(base.CODE_OK) {
-		logrus.Warnf("Get community error code [%v]")
-		ctx.JSON(http.StatusOK, gin.H{
-			"code": base.CODE_DATA_EXCEPTION,
-			"msg":  "not found",
-		})
+		logrus.Warnf("GetCommunityByID code error [%v]")
+		FailedByNotFind(ctx)
+		return
 	}
 
 	data := convertCommunity(infoResp.Community)
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"code": 0,
-		"msg":  "success",
-		"data": data,
-	})
+	Success(ctx, data)
+	return
 }

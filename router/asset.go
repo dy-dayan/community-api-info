@@ -5,6 +5,7 @@ import (
 	"github.com/dy-dayan/community-api-info/form"
 	"github.com/dy-dayan/community-api-info/idl"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"strconv"
 
@@ -55,26 +56,18 @@ func AddAsset(ctx *gin.Context) {
 
 	resp, err := client.AddAsset(context.Background(), &req)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": base.CODE_INVALID_PARAMETER,
-			"msg":  err.Error(),
-		})
+		logrus.Errorf("AddAsset service error [%v]", err)
+		FailedByParam(ctx)
 		return
 	}
 
 	if resp.BaseResp.Code != int32(base.CODE_OK) {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": base.CODE_INVALID_PARAMETER,
-			"msg":  "internal service error",
-		})
+		logrus.Errorf("AddAsset code error [%v]", resp.BaseResp.Code)
+		FailedByInternal(ctx)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"code": base.CODE_OK,
-		"msg":  "success",
-		"data": resp.AssetID,
-	})
+	Success(ctx, resp.AssetID)
 
 }
 
@@ -83,10 +76,7 @@ func DelAsset(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": base.CODE_INVALID_PARAMETER,
-			"msg":  err.Error(),
-		})
+		FailedByParam(ctx)
 		return
 	}
 	req := info.DelAssetReq{
@@ -95,25 +85,18 @@ func DelAsset(ctx *gin.Context) {
 	client := getClient()
 	resp, err := client.DelAsset(context.Background(), &req)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": base.CODE_DATA_EXCEPTION,
-			"msg":  err.Error(),
-		})
+		logrus.Errorf("DelAsset service error [%v]", err)
+		FailedByInternal(ctx)
 		return
 	}
 
 	if resp.BaseResp.Code != int32(base.CODE_OK) {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": base.CODE_DATA_EXCEPTION,
-			"msg":  "not found data",
-		})
+		logrus.Errorf("DelAsset code error [%v]", resp.BaseResp.Code)
+		FailedByNotFind(ctx)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"code": 0,
-		"msg":  "success",
-	})
+	Success(ctx, nil)
 	return
 
 }
@@ -123,10 +106,7 @@ func GetAssetByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": base.CODE_INVALID_PARAMETER,
-			"msg":  err.Error(),
-		})
+		FailedByParam(ctx)
 		return
 	}
 
@@ -136,25 +116,18 @@ func GetAssetByID(ctx *gin.Context) {
 	client := getClient()
 	resp, err := client.GetAssetByID(context.Background(), &req)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": base.CODE_INVALID_PARAMETER,
-			"msg":  err.Error(),
-		})
+		logrus.Errorf("GetAssetByID service error %v", err)
+		FailedByInternal(ctx)
 		return
 	}
 	if resp.BaseResp.Code != int32(base.CODE_OK) {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": base.CODE_SERVICE_EXCEPTION,
-			"msg":  "service exception",
-		})
+		logrus.Errorf("GetAssetByID code error [%v]", resp.BaseResp.Code)
+		FailedByNotFind(ctx)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"code": base.CODE_OK,
-		"msg":  "success",
-		"data": *ConvertAsset(resp.Asset),
-	})
+	Success(ctx, *ConvertAsset(resp.Asset))
+
 }
 
 //GetAsset
@@ -167,10 +140,7 @@ func GetAsset(ctx *gin.Context) {
 	offset, errOffset := strconv.Atoi(offsetStr)
 	communityId, errCommunityId := strconv.ParseInt(communityIdStr, 10, 64)
 	if errLimit != nil || errOffset != nil || errCommunityId != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": base.CODE_INVALID_PARAMETER,
-			"msg":  "param not correct",
-		})
+		FailedByParam(ctx)
 		return
 	}
 
@@ -184,18 +154,13 @@ func GetAsset(ctx *gin.Context) {
 
 	resp, err := client.GetAsset(context.Background(), &req)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": base.CODE_SERVICE_EXCEPTION,
-			"msg":  err.Error(),
-		})
+		logrus.Errorf("GetAsset server error [%v]", err)
+		FailedByInternal(ctx)
 		return
 	}
 
 	if resp.BaseResp.Code != int32(base.CODE_OK) {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"code": base.CODE_SERVICE_EXCEPTION,
-			"msg":  "internal service exception",
-		})
+		logrus.Errorf("GetAsset code error [%v]", resp.BaseResp.Code)
 		return
 	}
 
@@ -205,9 +170,5 @@ func GetAsset(ctx *gin.Context) {
 		data = append(data, *ConvertAsset(&tmpItem))
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"code": 0,
-		"msg":  "success",
-		"data": data,
-	})
+	Success(ctx, data)
 }

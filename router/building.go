@@ -6,10 +6,14 @@ func AddBuilding(ctx *gin.Context) {
 
 }
 
-func GetBuilding(ctx *gin.Context) {
+func DelBuilding(ctx *gin.Context) {
 
 }
 
-func DelBuilding(ctx *gin.Context) {
+func GetBuildingByID(ctx *gin.Context) {
+
+}
+
+func GetBuilding(ctx *gin.Context) {
 
 }
